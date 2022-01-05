@@ -30,10 +30,12 @@ import ca.uhn.fhir.jpa.model.search.SearchRuntimeDetails;
 import ca.uhn.fhir.jpa.searchparam.SearchParameterMap;
 import ca.uhn.fhir.rest.api.server.storage.ResourcePersistentId;
 import ca.uhn.fhir.rest.param.ReferenceParam;
+import ca.uhn.fhir.rest.server.exceptions.InternalErrorException;
 import org.slf4j.Logger;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -85,10 +87,13 @@ public class PatientBulkItemReader extends BaseJpaBulkItemReader implements Item
 
 			ourLog.debug("About to execute query {}", map.toNormalizedQueryString(myContext));
 			ISearchBuilder sb = getSearchBuilderForLocalResourceType();
-			IResultIterator myResultIterator = sb.createQuery(map, new SearchRuntimeDetails(null, myJobUUID), null, RequestPartitionId.allPartitions());
 
-			while (myResultIterator.hasNext()) {
-				myReadPids.add(myResultIterator.next());
+			try(IResultIterator myResultIterator = sb.createQuery(map, new SearchRuntimeDetails(null, myJobUUID), null, RequestPartitionId.allPartitions())) {
+				while (myResultIterator.hasNext()) {
+					myReadPids.add(myResultIterator.next());
+				}
+			} catch (IOException e) {
+				throw new InternalErrorException("Failed to close result iterator during bulk item read.", e);
 			}
 		}
 		return myReadPids.iterator();

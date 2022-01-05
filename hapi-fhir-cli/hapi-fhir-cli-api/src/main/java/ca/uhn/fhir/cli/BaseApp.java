@@ -221,10 +221,7 @@ public abstract class BaseApp {
 			return;
 		}
 
-		Optional<BaseCommand> commandOpt = parseCommand(theArgs);
-		if (! commandOpt.isPresent())  return;
-
-		BaseCommand command = commandOpt.get();
+		BaseCommand command = parseCommand(theArgs);
 
 		myShutdownHook = new MyShutdownHook(command);
 		Runtime.getRuntime().addShutdownHook(myShutdownHook);
@@ -281,17 +278,17 @@ public abstract class BaseApp {
 
 	}
 
-	private Optional<BaseCommand> parseCommand(String[] theArgs) {
+	private BaseCommand parseCommand(String[] theArgs) {
 		Optional<BaseCommand> commandOpt = getNextCommand(theArgs, 0);
 
-		if (! commandOpt.isPresent()) {
+		if (!commandOpt.isPresent()) {
 			String message = "Unrecognized command: " + ansi().bold().fg(Ansi.Color.RED) + theArgs[0] + ansi().boldOff().fg(Ansi.Color.WHITE);
 			printMessageToStdout(message);
 			printMessageToStdout("");
 			logUsage();
 			exitDueToProblem(message);
 		}
-		return commandOpt;
+		return commandOpt.get();
 	}
 
 	private Optional<BaseCommand> getNextCommand(String[] theArgs, int thePosition) {

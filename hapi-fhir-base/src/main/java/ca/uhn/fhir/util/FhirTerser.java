@@ -1497,7 +1497,7 @@ public class FhirTerser {
 		}
 
 		public List<IBaseResource> getContainedResources() {
-			if (getResourceToIdMap() == null) {
+			if (getResourceToIdMap().isEmpty()) {
 				return Collections.emptyList();
 			}
 			return getOrCreateResourceList();

@@ -132,7 +132,7 @@ public class JpaPackageCache extends BasePackageCacheManager implements IHapiPac
 	@Transactional
 	public NpmPackage loadPackageFromCacheOnly(String theId, @Nullable String theVersion) {
 		Optional<NpmPackageVersionEntity> packageVersion = loadPackageVersionEntity(theId, theVersion);
-		if (!packageVersion.isPresent() && theVersion.endsWith(".x")) {
+		if (!packageVersion.isPresent() && theVersion != null && theVersion.endsWith(".x")) {
 			String lookupVersion = theVersion;
 			do {
 				lookupVersion = lookupVersion.substring(0, lookupVersion.length() - 2);
@@ -664,7 +664,7 @@ public class JpaPackageCache extends BasePackageCacheManager implements IHapiPac
 				ourLog.info(msg);
 				retVal.getMessage().add(msg);
 				Optional<NpmPackageEntity> pkgEntity = myPackageDao.findByPackageId(thePackageId);
-				myPackageDao.delete(pkgEntity.get());
+				pkgEntity.ifPresent(npmPackageEntity -> myPackageDao.delete(npmPackageEntity));
 			} else {
 
 				List<NpmPackageVersionEntity> versions = remainingVersions

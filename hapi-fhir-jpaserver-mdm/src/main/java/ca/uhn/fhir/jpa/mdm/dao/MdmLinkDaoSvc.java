@@ -69,8 +69,8 @@ public class MdmLinkDaoSvc {
 		mdmLink.setLinkSource(theLinkSource);
 		mdmLink.setMatchResult(theMatchOutcome.getMatchResultEnum());
 		// Preserve these flags for link updates
-		mdmLink.setEidMatch(theMatchOutcome.isEidMatch() | mdmLink.isEidMatchPresent());
-		mdmLink.setHadToCreateNewGoldenResource(theMatchOutcome.isCreatedNewResource() | mdmLink.getHadToCreateNewGoldenResource());
+		mdmLink.setEidMatch(theMatchOutcome.isEidMatch() || mdmLink.isEidMatchPresent());
+		mdmLink.setHadToCreateNewGoldenResource(theMatchOutcome.isCreatedNewResource() || mdmLink.getHadToCreateNewGoldenResource());
 		mdmLink.setMdmSourceType(myFhirContext.getResourceType(theSourceResource));
 		if (mdmLink.getScore() != null) {
 			mdmLink.setScore(Math.max(theMatchOutcome.score, mdmLink.getScore()));

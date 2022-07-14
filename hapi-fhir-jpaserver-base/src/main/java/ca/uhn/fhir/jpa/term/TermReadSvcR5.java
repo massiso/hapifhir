@@ -76,6 +76,12 @@ public class TermReadSvcR5 extends BaseTermReadSvcImpl implements IValidationSup
 	}
 
 	@Override
+	public IBaseResource expandValueSetFromCodeSystem(String theValueSetUri) {
+		org.hl7.fhir.r4.model.ValueSet valueSetR4 = (org.hl7.fhir.r4.model.ValueSet) super.expandValueSetFromCodeSystem(theValueSetUri);
+		return VersionConvertorFactory_40_50.convertResource(valueSetR4, new BaseAdvisor_40_50(false));
+	}
+
+	@Override
 	protected org.hl7.fhir.r4.model.ValueSet getValueSetFromResourceTable(ResourceTable theResourceTable) {
 		ValueSet valueSetR5 = myDaoRegistry.getResourceDao("ValueSet").toResource(ValueSet.class, theResourceTable, null, false);
 		return (org.hl7.fhir.r4.model.ValueSet) VersionConvertorFactory_40_50.convertResource(valueSetR5, new BaseAdvisor_40_50(false));

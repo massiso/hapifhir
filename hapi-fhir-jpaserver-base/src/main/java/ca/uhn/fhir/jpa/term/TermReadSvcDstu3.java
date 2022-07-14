@@ -132,6 +132,12 @@ public class TermReadSvcDstu3 extends BaseTermReadSvcImpl implements IValidation
 	}
 
 	@Override
+	public IBaseResource expandValueSetFromCodeSystem(String theValueSetUri) {
+		org.hl7.fhir.r4.model.ValueSet expandedR4 = (org.hl7.fhir.r4.model.ValueSet) super.expandValueSetFromCodeSystem(theValueSetUri);
+		return VersionConvertorFactory_30_40.convertResource(expandedR4, new BaseAdvisor_30_40(false));
+	}
+
+	@Override
 	protected org.hl7.fhir.r4.model.ValueSet getValueSetFromResourceTable(ResourceTable theResourceTable) {
 		ValueSet valueSet = myDaoRegistry.getResourceDao("ValueSet").toResource(ValueSet.class, theResourceTable, null, false);
 

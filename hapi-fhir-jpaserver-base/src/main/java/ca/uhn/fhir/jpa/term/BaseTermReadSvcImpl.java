@@ -248,7 +248,7 @@ public abstract class BaseTermReadSvcImpl implements ITermReadSvc {
 	@PersistenceContext(type = PersistenceContextType.TRANSACTION)
 	protected EntityManager myEntityManager;
 	@Autowired
-	private ITermCodeSystemVersionDao myCodeSystemVersionDao;
+	protected ITermCodeSystemVersionDao myCodeSystemVersionDao;
 	@Autowired
 	private DaoConfig myDaoConfig;
 	private TransactionTemplate myTxTemplate;
@@ -490,6 +490,13 @@ public abstract class BaseTermReadSvcImpl implements ITermReadSvc {
 	private void expandValueSetIntoAccumulator(ValueSet theValueSetToExpand, ValueSetExpansionOptions theExpansionOptions, IValueSetConceptAccumulator theAccumulator, ExpansionFilter theFilter, boolean theAdd) {
 		Optional<TermValueSet> optionalTermValueSet;
 		if (theValueSetToExpand.hasUrl()) {
+			if (theValueSetToExpand.hasExpansion() && theValueSetToExpand.hasUrl() && getTermCodeSystemByValueSetUrl(theValueSetToExpand.getUrl()) != null) {
+				Set<String> theCodes = new HashSet<>();
+				for (ValueSet.ValueSetExpansionContainsComponent contain : theValueSetToExpand.getExpansion().getContains()) {
+					addOrRemoveCode(theAccumulator, theCodes, theAdd, contain.getSystem(), contain.getCode(), contain.getDisplay(), contain.getVersion());
+				}
+				return;
+			}
 			if (theValueSetToExpand.hasVersion()) {
 				optionalTermValueSet = myTermValueSetDao.findTermValueSetByUrlAndVersion(theValueSetToExpand.getUrl(), theValueSetToExpand.getVersion());
 			} else {
@@ -528,6 +535,39 @@ public abstract class BaseTermReadSvcImpl implements ITermReadSvc {
 		String msg = myContext.getLocalizer().getMessage(BaseTermReadSvcImpl.class, "valueSetExpandedUsingPreExpansion", expansionTimestamp);
 		theAccumulator.addMessage(msg);
 		expandConcepts(theExpansionOptions, theAccumulator, termValueSet, theFilter, theAdd, isOracleDialect());
+	}
+
+	private TermCodeSystem getTermCodeSystemByValueSetUrl(String theValueSetUrl) {
+		List<TermCodeSystemVersion> byCodeSystemValueset = myCodeSystemVersionDao.findByCodeSystemValueset(theValueSetUrl);
+		if (byCodeSystemValueset.size() == 1) return byCodeSystemValueset.get(0).getCodeSystem();
+		return null;
+	}
+
+	@Override
+	public IBaseResource expandValueSetFromCodeSystem(String theValueSetUri) {
+		List<TermCodeSystemVersion> matchingValueSets = myCodeSystemVersionDao.findByCodeSystemValueset(theValueSetUri);
+		if (matchingValueSets.size() == 0) return null; //nothing was found, continue
+		if (matchingValueSets.size() > 1) {
+			String message = "More than one CodeSystem resource was found matching the provided implicit ValueSet URI: " +
+				matchingValueSets.stream().map(v -> v.getCodeSystem().getCodeSystemUri()).sorted().collect(Collectors.joining("; "));
+			throw new UnprocessableEntityException(Msg.code(2102) + message);
+		}
+		// we have exactly one CS
+		TermCodeSystem ourCodeSystem = matchingValueSets.get(0).getCodeSystem();
+		Collection<TermConcept> ourConcepts = matchingValueSets.get(0).getConcepts();
+		ValueSet toReturn = new ValueSet();
+		toReturn.setUrl(theValueSetUri);
+		toReturn.getCompose().addInclude()
+			.setSystem(ourCodeSystem.getCodeSystemUri())
+			.setVersion(ourCodeSystem.getCurrentVersion().getCodeSystemVersionId());
+
+		for (TermConcept ourConcept : ourConcepts) {
+			toReturn.getExpansion().addContains()
+				.setSystem(ourCodeSystem.getCodeSystemUri())
+				.setCode(ourConcept.getCode())
+				.setDisplay(ourConcept.getDisplay());
+		}
+		return toReturn;
 	}
 
 	@Nonnull

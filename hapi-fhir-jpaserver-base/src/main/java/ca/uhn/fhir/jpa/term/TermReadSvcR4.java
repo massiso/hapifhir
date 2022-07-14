@@ -58,6 +58,11 @@ public class TermReadSvcR4 extends BaseTermReadSvcImpl implements ITermReadSvcR4
 		super.expandValueSet(theExpansionOptions, valueSetToExpand, theValueSetCodeAccumulator);
 	}
 
+	@Override
+	public IBaseResource expandValueSetFromCodeSystem(String theValueSetUri) {
+		return super.expandValueSetFromCodeSystem(theValueSetUri);
+	}
+
 	@Transactional(dontRollbackOn = {ExpansionTooCostlyException.class})
 	@Override
 	public IValidationSupport.ValueSetExpansionOutcome expandValueSet(ValidationSupportContext theValidationSupportContext, ValueSetExpansionOptions theExpansionOptions, @Nonnull IBaseResource theValueSetToExpand) {

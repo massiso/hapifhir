@@ -686,8 +686,21 @@ public class FhirInstanceValidatorDstu3Test {
 					} else if (t.getMessage().contains("side is inherently a collection") && t.getMessage().endsWith("may fail or return false if there is more than one item in the content being evaluated")) {
 						// Some DSTU3 FHIRPath expressions now produce warnings if a singleton is compared to a collection that potentially has > 1 elements
 						return false;
-					} else {
-						return true;
+					} else if (t.getMessage().contains("When HL7 is publishing a resource, the owning committee must be stated using the http://hl7.org/fhir/StructureDefinition/structuredefinition-wg extension")) {
+						// DSTU3 resources predate this strict requirement
+						return false;
+					} else if (t.getMessage().equals("The nominated WG 'rcrim' is unknown")) {
+						//The rcrim workgroup is now brr http://www.hl7.org/Special/committees/rcrim/index.cfm
+						return false;
+					} else if (t.getSeverity() == ResultSeverityEnum.WARNING
+						&& ( t.getMessageId().equals("VALIDATION_HL7_PUBLISHER_MISMATCH")
+							|| t.getMessageId().equals("VALIDATION_HL7_WG_URL")
+						)) {
+						// Workgroups have been updated and have slightly different naming conventions and URLs.
+						return false;
+					}
+					else {
+				return true;
 					}
 				})
 				.collect(Collectors.toList());
@@ -1176,7 +1189,7 @@ public class FhirInstanceValidatorDstu3Test {
 
 	@Test
 	public void testValidateResourceWithDefaultValueset() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 
 		input.setStatus(ObservationStatus.FINAL);
 		input.getCode().setText("No code here!");
@@ -1208,7 +1221,7 @@ public class FhirInstanceValidatorDstu3Test {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationFailing() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 
 		myInstanceVal.setValidationSupport(myValidationSupport);
 
@@ -1240,7 +1253,7 @@ public class FhirInstanceValidatorDstu3Test {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationPassingLoinc() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 
 		myInstanceVal.setValidationSupport(myValidationSupport);
 		addValidConcept("http://loinc.org", "12345");
@@ -1255,7 +1268,7 @@ public class FhirInstanceValidatorDstu3Test {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationPassingLoincWithExpansion() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 
 		ValueSetExpansionComponent expansionComponent = new ValueSetExpansionComponent();
 		expansionComponent.addContains().setSystem("http://loinc.org").setCode("12345").setDisplay("Some display code");
@@ -1275,7 +1288,7 @@ public class FhirInstanceValidatorDstu3Test {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationPassingNonLoinc() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 
 		myInstanceVal.setValidationSupport(myValidationSupport);
 		addValidConcept("http://acme.org", "12345");
@@ -1286,6 +1299,14 @@ public class FhirInstanceValidatorDstu3Test {
 		ValidationResult output = myVal.validateWithResult(input);
 		List<SingleValidationMessage> errors = logResultsAndReturnAll(output);
 		assertEquals(0, errors.size(), errors.toString());
+	}
+
+	private Observation createObservationWithDefaultSubjectPerfomerEffective() {
+		Observation observation = new Observation();
+		observation.setSubject(new Reference("Patient/123"));
+		observation.addPerformer(new Reference("Practitioner/124"));
+		observation.setEffective(new DateTimeType("2023-01-01T11:22:33Z"));
+		return observation;
 	}
 
 	@Test

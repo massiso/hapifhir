@@ -85,6 +85,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -516,6 +517,9 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 	@Test
 	public void testValidateDoesntEnforceBestPracticesByDefault() {
 		Observation input = new Observation();
+		input.addPerformer(new Reference("Practitioner/124"));
+		input.setEffective(new DateTimeType("2023-01-01T11:22:33Z"));
+
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 		input.setStatus(ObservationStatus.AMENDED);
 		input.getCode().addCoding().setSystem("http://loinc.org").setCode("1234").setDisplay("FOO");
@@ -532,7 +536,8 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 		result = val.validateWithResult(input);
 		all = logResultsAndReturnAll(result);
 		assertTrue(result.isSuccessful());
-		assertThat(all, empty());
+		assertThat(all, hasSize(1));
+		assertEquals("Best Practice Recommendation: In general, all observations should have a subject", all.get(0).getMessage());
 
 		// With BPs enabled
 		val = ourCtx.newValidator();
@@ -543,7 +548,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 		result = val.validateWithResult(input);
 		all = logResultsAndReturnAll(result);
 		assertFalse(result.isSuccessful());
-		assertEquals("All observations should have a subject", all.get(0).getMessage());
+		assertEquals("Best Practice Recommendation: In general, all observations should have a subject", all.get(0).getMessage());
 	}
 
 
@@ -1171,7 +1176,9 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 	public void testValidateResourceContainingLoincCode() {
 		addValidConcept("http://loinc.org", "1234567");
 
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
+		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
+
 		// input.getMeta().addProfile("http://hl7.org/fhir/StructureDefinition/devicemetricobservation");
 
 		input.addIdentifier().setSystem("http://acme").setValue("12345");
@@ -1213,7 +1220,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 	public void testValidateResourceContainingProfileDeclarationDoesntResolve() {
 		addValidConcept("http://loinc.org", "12345");
 
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 		input.getMeta().addProfile("http://foo/structuredefinition/myprofile");
 
@@ -1246,7 +1253,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 
 	@Test
 	public void testValidateResourceWithDefaultValueset() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 		input.setStatus(ObservationStatus.FINAL);
@@ -1255,7 +1262,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 		ourLog.debug(ourCtx.newXmlParser().setPrettyPrint(true).encodeResourceToString(input));
 
 		ValidationResult output = myFhirValidator.validateWithResult(input);
-		assertEquals(output.getMessages().size(), 0);
+		assertEquals(0, output.getMessages().size());
 	}
 
 	@Test
@@ -1310,7 +1317,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationFailing() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 
 		myInstanceVal.setValidationSupport(myValidationSupport);
@@ -1344,7 +1351,9 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 		IValidatorResourceFetcher fetcher = mock(IValidatorResourceFetcher.class, withSettings().verboseLogging());
 		when(fetcher.fetch(any(), any(), any())).thenAnswer(t -> {
 			return new JsonParser(new VersionSpecificWorkerContextWrapper(new ValidationSupportContext(myValidationSupport), new VersionCanonicalizer(ourCtx)))
-				.parse(ourCtx.newJsonParser().encodeResourceToString(patient), "Patient");
+				.parse( new ArrayList<>(),
+					org.hl7.fhir.utilities.json.parser.JsonParser.parseObject(ourCtx.newJsonParser().encodeResourceToString(patient))
+				);
 		});
 		myInstanceVal.setValidatorResourceFetcher(fetcher);
 		myInstanceVal.setValidationSupport(myValidationSupport);
@@ -1382,7 +1391,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationPassingLoinc() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 
 		myInstanceVal.setValidationSupport(myValidationSupport);
@@ -1398,7 +1407,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationPassingLoincWithExpansion() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 
 		ValueSetExpansionComponent expansionComponent = new ValueSetExpansionComponent();
@@ -1419,7 +1428,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 
 	@Test
 	public void testValidateResourceWithExampleBindingCodeValidationPassingNonLoinc() {
-		Observation input = new Observation();
+		Observation input = createObservationWithDefaultSubjectPerfomerEffective();
 		input.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 
 		myInstanceVal.setValidationSupport(myValidationSupport);
@@ -1431,6 +1440,14 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 		ValidationResult output = myFhirValidator.validateWithResult(input);
 		List<SingleValidationMessage> errors = logResultsAndReturnAll(output);
 		assertEquals(0, errors.size(), errors.toString());
+	}
+
+	private Observation createObservationWithDefaultSubjectPerfomerEffective() {
+		Observation observation = new Observation();
+		observation.setSubject(new Reference("Patient/123"));
+		observation.addPerformer(new Reference("Practitioner/124"));
+		observation.setEffective(new DateTimeType("2023-01-01T11:22:33Z"));
+		return observation;
 	}
 
 	@Test
@@ -1538,6 +1555,10 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 	public void testValidateCurrency() {
 		String input = "{\n" +
 			" \"resourceType\": \"Invoice\",\n" +
+			"\"text\": {\n" +
+			"  \"status\": \"generated\",\n" +
+			"  \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\">AA</div>\"\n" +
+			" }," +
 			" \"status\": \"draft\",\n" +
 			" \"date\": \"2020-01-08\",\n" +
 			" \"totalGross\": {\n" +
@@ -1556,6 +1577,10 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 	public void testValidateCurrency_Wrong() {
 		String input = "{\n" +
 			" \"resourceType\": \"Invoice\",\n" +
+			"\"text\": {\n" +
+			"  \"status\": \"generated\",\n" +
+			"  \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\">AA</div>\"\n" +
+			" }," +
 			" \"status\": \"draft\",\n" +
 			" \"date\": \"2020-01-08\",\n" +
 			" \"totalGross\": {\n" +
@@ -1576,6 +1601,7 @@ public class FhirInstanceValidatorR4Test extends BaseTest {
 	public void testValidateReferenceTargetType_Correct() {
 
 		AllergyIntolerance allergy = new AllergyIntolerance();
+		allergy.getText().setDiv(new XhtmlNode().setValue("<div>AA</div>")).setStatus(Narrative.NarrativeStatus.GENERATED);
 		allergy.getClinicalStatus().addCoding().setSystem("http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical").setCode("active").setDisplay("Active");
 		allergy.getVerificationStatus().addCoding().setSystem("http://terminology.hl7.org/CodeSystem/allergyintolerance-verification").setCode("confirmed").setDisplay("Confirmed");
 		allergy.setPatient(new Reference("Patient/123"));

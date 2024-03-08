@@ -393,6 +393,7 @@ public class ValidationSupportChain implements IValidationSupport {
 			String theCode,
 			String theDisplay,
 			@Nonnull IBaseResource theValueSet) {
+		ArrayList<CodeValidationResult> retVals = new ArrayList<>();
 		for (IValidationSupport next : myChain) {
 			String url = CommonCodeSystemsTerminologyService.getValueSetUrl(getFhirContext(), theValueSet);
 			if (isBlank(url) || next.isValueSetSupported(theValidationSupportContext, url)) {
@@ -408,11 +409,31 @@ public class ValidationSupportChain implements IValidationSupport {
 								theValueSet.getIdElement(),
 								next.getName());
 					}
-					return retVal;
+					retVals.add(retVal);
 				}
 			}
 		}
+		if (!retVals.isEmpty()) {
+			return getMostExplicitCode(retVals);
+		}
 		return null;
+	}
+
+	private CodeValidationResult getMostExplicitCode(ArrayList<CodeValidationResult> retVals) {
+		CodeValidationResult mostExplicit = retVals.get(0);
+		for (CodeValidationResult next : retVals) {
+			if (next.getSeverity() == null) {
+				continue;
+			}
+			if (mostExplicit.getSeverity() == null) {
+				mostExplicit = next;
+				continue;
+			}
+			if (next.getSeverity().ordinal() > mostExplicit.getSeverity().ordinal()) {
+				mostExplicit = next;
+			}
+		}
+		return mostExplicit;
 	}
 
 	@Override

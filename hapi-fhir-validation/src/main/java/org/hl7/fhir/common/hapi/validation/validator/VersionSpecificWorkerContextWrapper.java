@@ -798,26 +798,24 @@ public class VersionSpecificWorkerContextWrapper extends I18nBase implements IWo
 
 		if (theVs == null) {
 			String message = "Unknown code (for '" + code.getCodingFirstRep().getSystem() + "#"
-				+ code.getCodingFirstRep().getCode() + "')";
-			OperationOutcome.OperationOutcomeIssueComponent issue = getOperationOutcomeTxIssueComponent(message, OperationOutcome.IssueType.CODEINVALID.toCode());
+					+ code.getCodingFirstRep().getCode() + "')";
+			OperationOutcome.OperationOutcomeIssueComponent issue =
+					getOperationOutcomeTxIssueComponent(message, OperationOutcome.IssueType.CODEINVALID.toCode());
 			issues.add(issue);
 		}
 
 		return new ValidationResult(ValidationMessage.IssueSeverity.ERROR, null, issues);
 	}
 
-	private static OperationOutcome.OperationOutcomeIssueComponent getOperationOutcomeTxIssueComponent(String message, String txIssueTypeCode) {
+	private static OperationOutcome.OperationOutcomeIssueComponent getOperationOutcomeTxIssueComponent(
+			String message, String txIssueTypeCode) {
 		OperationOutcome.OperationOutcomeIssueComponent issue = new OperationOutcome.OperationOutcomeIssueComponent()
 				.setSeverity(OperationOutcome.IssueSeverity.ERROR)
 				.setDiagnostics(message);
 		issue.getDetails().setText(message);
 
 		issue.setCode(OperationOutcome.IssueType.CODEINVALID);
-		issue.getDetails()
-			.addCoding(
-				"http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
-				txIssueTypeCode,
-				null);
+		issue.getDetails().addCoding("http://hl7.org/fhir/tools/CodeSystem/tx-issue-type", txIssueTypeCode, null);
 		return issue;
 	}
 

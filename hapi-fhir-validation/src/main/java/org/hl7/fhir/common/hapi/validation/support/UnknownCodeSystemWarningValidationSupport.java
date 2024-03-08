@@ -102,11 +102,22 @@ public class UnknownCodeSystemWarningValidationSupport extends BaseValidationSup
 			return null;
 		}
 
-		return new CodeValidationResult()
-				.setCode(theCode)
-				.setSeverity(IssueSeverity.INFORMATION)
-				.setMessage("Code " + theCodeSystem + "#" + theCode
-						+ " was not checked because the CodeSystem is not available");
+		//TODO Refactor result generation and severity to avoid repeating ourselves
+		CodeValidationResult result = new CodeValidationResult();
+		// will be warning or info (error/fatal filtered out above)
+		result.setSeverity(myNonExistentCodeSystemSeverity);
+		result.setMessage("Code " + theCodeSystem + "#" + theCode
+			+ " was not checked because the CodeSystem is not available");
+
+		// For information level, we just strip out the severity+message entirely
+		// so that nothing appears in the validation result
+		if (myNonExistentCodeSystemSeverity == IssueSeverity.INFORMATION) {
+			result.setCode(theCode);
+			result.setSeverity(null);
+			result.setMessage(null);
+		}
+
+		return result;
 	}
 
 	/**

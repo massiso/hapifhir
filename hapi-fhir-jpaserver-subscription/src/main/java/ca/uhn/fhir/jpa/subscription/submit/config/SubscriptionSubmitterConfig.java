@@ -20,6 +20,7 @@
 package ca.uhn.fhir.jpa.subscription.submit.config;
 
 import ca.uhn.fhir.interceptor.api.IInterceptorService;
+import ca.uhn.fhir.jpa.channel.SubscriptionChannelConfig;
 import ca.uhn.fhir.jpa.dao.tx.IHapiTransactionService;
 import ca.uhn.fhir.jpa.model.config.SubscriptionSettings;
 import ca.uhn.fhir.jpa.subscription.async.AsyncResourceModifiedProcessingSchedulerSvc;
@@ -56,7 +57,12 @@ import static ca.uhn.fhir.jpa.subscription.submit.interceptor.validator.RestHook
  * matching queue for processing
  */
 @Configuration
-@Import({SubscriptionModelConfig.class, SubscriptionMatcherInterceptorConfig.class, SubscriptionConfig.class})
+@Import({
+	SubscriptionModelConfig.class,
+	SubscriptionMatcherInterceptorConfig.class,
+	SubscriptionConfig.class,
+	SubscriptionChannelConfig.class
+})
 public class SubscriptionSubmitterConfig {
 
 	@Bean

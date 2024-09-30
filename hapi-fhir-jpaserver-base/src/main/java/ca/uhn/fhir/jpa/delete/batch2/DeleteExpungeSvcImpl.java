@@ -19,10 +19,12 @@
  */
 package ca.uhn.fhir.jpa.delete.batch2;
 
+import ca.uhn.fhir.batch2.model.WorkChunk;
 import ca.uhn.fhir.jpa.api.svc.IDeleteExpungeSvc;
 import ca.uhn.fhir.jpa.dao.IFulltextSearchSvc;
 import ca.uhn.fhir.jpa.model.dao.JpaPid;
 import ca.uhn.fhir.jpa.model.entity.ResourceTable;
+import ca.uhn.fhir.model.api.IModelJson;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,19 +50,26 @@ public class DeleteExpungeSvcImpl implements IDeleteExpungeSvc<JpaPid> {
 	}
 
 	@Override
-	public int deleteExpunge(List<JpaPid> theJpaPids, boolean theCascade, Integer theCascadeMaxRounds) {
+	public <PT extends IModelJson> int deleteExpunge(
+			List<JpaPid> theJpaPids, boolean theCascade, Integer theCascadeMaxRounds, PT theWorkChunk) {
 		DeleteExpungeSqlBuilder.DeleteExpungeSqlResult sqlResult =
 				myDeleteExpungeSqlBuilder.convertPidsToDeleteExpungeSql(theJpaPids, theCascade, theCascadeMaxRounds);
 		List<String> sqlList = sqlResult.getSqlStatements();
 
-		ourLog.debug("Executing {} delete expunge sql commands", sqlList.size());
+		String formattedChunkIdForLogMessage = "";
+		if (theWorkChunk instanceof WorkChunk
+				&& !((WorkChunk) theWorkChunk).getId().isBlank()) {
+			formattedChunkIdForLogMessage = "Chunk[" + ((WorkChunk) theWorkChunk).getId() + "] - ";
+		}
+
+		ourLog.debug("{}Executing {} delete expunge sql commands", formattedChunkIdForLogMessage, sqlList.size());
 		long totalDeleted = 0;
 		for (String sql : sqlList) {
 			ourLog.trace("Executing sql " + sql);
 			totalDeleted += myEntityManager.createNativeQuery(sql).executeUpdate();
 		}
 
-		ourLog.info("{} records deleted", totalDeleted);
+		ourLog.info("{}Delete expunge sql commands affected {} rows", formattedChunkIdForLogMessage, totalDeleted);
 		clearHibernateSearchIndex(theJpaPids);
 
 		// TODO KHS instead of logging progress, produce result chunks that get aggregated into a delete expunge report

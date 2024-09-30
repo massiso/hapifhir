@@ -19,8 +19,14 @@
  */
 package ca.uhn.fhir.batch2.jobs.expunge;
 
-import ca.uhn.fhir.batch2.api.*;
+import ca.uhn.fhir.batch2.api.IJobDataSink;
+import ca.uhn.fhir.batch2.api.IJobStepWorker;
+import ca.uhn.fhir.batch2.api.JobExecutionFailedException;
+import ca.uhn.fhir.batch2.api.RunOutcome;
+import ca.uhn.fhir.batch2.api.StepExecutionDetails;
+import ca.uhn.fhir.batch2.api.VoidModel;
 import ca.uhn.fhir.batch2.jobs.chunk.ResourceIdListWorkChunkJson;
+import ca.uhn.fhir.batch2.model.WorkChunk;
 import ca.uhn.fhir.jpa.api.svc.IDeleteExpungeSvc;
 import ca.uhn.fhir.jpa.api.svc.IIdHelperService;
 import ca.uhn.fhir.jpa.dao.tx.HapiTransactionService;
@@ -70,7 +76,7 @@ public class DeleteExpungeStep
 				data,
 				theDataSink,
 				theStepExecutionDetails.getInstance().getInstanceId(),
-				theStepExecutionDetails.getChunkId(),
+				theStepExecutionDetails.getWorkChunk(),
 				cascade,
 				cascadeMaxRounds);
 	}
@@ -80,7 +86,7 @@ public class DeleteExpungeStep
 			ResourceIdListWorkChunkJson theData,
 			IJobDataSink<VoidModel> theDataSink,
 			String theInstanceId,
-			String theChunkId,
+			WorkChunk theWorkChunk,
 			boolean theCascade,
 			Integer theCascadeMaxRounds) {
 		RequestDetails requestDetails = new SystemRequestDetails();
@@ -91,7 +97,7 @@ public class DeleteExpungeStep
 				transactionDetails,
 				theDataSink,
 				theInstanceId,
-				theChunkId,
+				theWorkChunk,
 				theCascade,
 				theCascadeMaxRounds);
 		myHapiTransactionService
@@ -108,7 +114,7 @@ public class DeleteExpungeStep
 		private final RequestDetails myRequestDetails;
 		private final TransactionDetails myTransactionDetails;
 		private final IJobDataSink<VoidModel> myDataSink;
-		private final String myChunkId;
+		private final WorkChunk myWorkChunk;
 		private final String myInstanceId;
 		private final boolean myCascade;
 		private final Integer myCascadeMaxRounds;
@@ -120,7 +126,7 @@ public class DeleteExpungeStep
 				TransactionDetails theTransactionDetails,
 				IJobDataSink<VoidModel> theDataSink,
 				String theInstanceId,
-				String theChunkId,
+				WorkChunk theWorkChunk,
 				boolean theCascade,
 				Integer theCascadeMaxRounds) {
 			myData = theData;
@@ -128,7 +134,7 @@ public class DeleteExpungeStep
 			myTransactionDetails = theTransactionDetails;
 			myDataSink = theDataSink;
 			myInstanceId = theInstanceId;
-			myChunkId = theChunkId;
+			myWorkChunk = theWorkChunk;
 			myCascade = theCascade;
 			myCascadeMaxRounds = theCascadeMaxRounds;
 		}
@@ -141,12 +147,13 @@ public class DeleteExpungeStep
 		public Void doInTransaction(@Nonnull TransactionStatus theStatus) {
 
 			List<JpaPid> persistentIds = myData.getResourcePersistentIds(myIdHelperService);
+			String workChunkId = myWorkChunk.getId();
 
 			if (persistentIds.isEmpty()) {
 				ourLog.info(
 						"Starting delete expunge work chunk.  There are no resources to delete expunge - Instance[{}] Chunk[{}]",
 						myInstanceId,
-						myChunkId);
+						workChunkId);
 				return null;
 			}
 
@@ -154,9 +161,15 @@ public class DeleteExpungeStep
 					"Starting delete expunge work chunk with {} resources - Instance[{}] Chunk[{}]",
 					persistentIds.size(),
 					myInstanceId,
-					myChunkId);
+					workChunkId);
 
-			myRecordCount = myDeleteExpungeSvc.deleteExpunge(persistentIds, myCascade, myCascadeMaxRounds);
+			myRecordCount = myDeleteExpungeSvc.deleteExpunge(persistentIds, myCascade, myCascadeMaxRounds, myWorkChunk);
+
+			ourLog.info(
+					"Delete expunge finished deleting {} resources  - Instance[{}] Chunk[{}]",
+					myRecordCount,
+					myInstanceId,
+					workChunkId);
 
 			return null;
 		}

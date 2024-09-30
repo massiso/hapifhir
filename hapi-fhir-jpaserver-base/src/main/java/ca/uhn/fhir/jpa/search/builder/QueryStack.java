@@ -361,7 +361,7 @@ public class QueryStack {
 			case STRING:
 				StringPredicateBuilder stringPredicateBuilder = mySqlBuilder.createStringPredicateBuilder();
 				addSortCustomJoin(
-						resourceLinkPredicateBuilder.getColumnTargetResourceId(),
+						resourceLinkPredicateBuilder.getJoinColumnsForTarget(),
 						stringPredicateBuilder,
 						stringPredicateBuilder.createHashIdentityPredicate(targetType, theChain));
 
@@ -372,7 +372,7 @@ public class QueryStack {
 			case TOKEN:
 				TokenPredicateBuilder tokenPredicateBuilder = mySqlBuilder.createTokenPredicateBuilder();
 				addSortCustomJoin(
-						resourceLinkPredicateBuilder.getColumnTargetResourceId(),
+						resourceLinkPredicateBuilder.getJoinColumnsForTarget(),
 						tokenPredicateBuilder,
 						tokenPredicateBuilder.createHashIdentityPredicate(targetType, theChain));
 
@@ -383,7 +383,7 @@ public class QueryStack {
 			case DATE:
 				DatePredicateBuilder datePredicateBuilder = mySqlBuilder.createDatePredicateBuilder();
 				addSortCustomJoin(
-						resourceLinkPredicateBuilder.getColumnTargetResourceId(),
+						resourceLinkPredicateBuilder.getJoinColumnsForTarget(),
 						datePredicateBuilder,
 						datePredicateBuilder.createHashIdentityPredicate(targetType, theChain));
 
@@ -477,16 +477,16 @@ public class QueryStack {
 			BaseJoiningPredicateBuilder theFromJoiningPredicateBuilder,
 			BaseJoiningPredicateBuilder theToJoiningPredicateBuilder,
 			Condition theCondition) {
-		addSortCustomJoin(
-				theFromJoiningPredicateBuilder.getResourceIdColumn(), theToJoiningPredicateBuilder, theCondition);
+		addSortCustomJoin(theFromJoiningPredicateBuilder.getJoinColumns(), theToJoiningPredicateBuilder, theCondition);
 	}
 
 	private void addSortCustomJoin(
-			DbColumn theFromDbColumn,
+			DbColumn theFromDbColumn[],
 			BaseJoiningPredicateBuilder theToJoiningPredicateBuilder,
 			Condition theCondition) {
+
 		ComboCondition onCondition =
-				mySqlBuilder.createOnCondition(theFromDbColumn, theToJoiningPredicateBuilder.getResourceIdColumn());
+				mySqlBuilder.createOnCondition(theFromDbColumn, theToJoiningPredicateBuilder.getJoinColumns());
 
 		if (theCondition != null) {
 			onCondition.addCondition(theCondition);
@@ -494,7 +494,7 @@ public class QueryStack {
 
 		mySqlBuilder.addCustomJoin(
 				SelectQuery.JoinType.LEFT_OUTER,
-				theFromDbColumn.getTable(),
+				theFromDbColumn[0].getTable(),
 				theToJoiningPredicateBuilder.getTable(),
 				onCondition);
 	}
@@ -1482,7 +1482,11 @@ public class QueryStack {
 
 	public void addGrouping() {
 		BaseJoiningPredicateBuilder firstPredicateBuilder = mySqlBuilder.getOrCreateFirstPredicateBuilder();
-		mySqlBuilder.getSelect().addGroupings(firstPredicateBuilder.getJoinColumns());
+		// mySqlBuilder.getSelect().addGroupings(firstPredicateBuilder.getJoinColumns());
+		// we always select partition_id, even if not joining.
+		mySqlBuilder.getSelect().addGroupings(new DbColumn[] {
+			firstPredicateBuilder.getPartitionIdColumn(), firstPredicateBuilder.getResourceIdColumn()
+		});
 	}
 
 	public void addOrdering() {
@@ -1582,7 +1586,12 @@ public class QueryStack {
 			if (theSourceJoinColumn == null) {
 				BaseJoiningPredicateBuilder root = mySqlBuilder.getOrCreateFirstPredicateBuilder(false);
 				DbColumn[] joinColumns = root.getJoinColumns();
-				Object joinColumnObject = ColumnTupleObject.from(joinColumns);
+				Object joinColumnObject;
+				if (joinColumns.length == 1) {
+					joinColumnObject = joinColumns[0];
+				} else {
+					joinColumnObject = ColumnTupleObject.from(joinColumns);
+				}
 				retVal = new InCondition(joinColumnObject, union);
 			} else {
 				// -- for the resource link, need join with target_resource_id

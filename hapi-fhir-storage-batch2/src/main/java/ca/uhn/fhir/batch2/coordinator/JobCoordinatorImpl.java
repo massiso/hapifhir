@@ -19,6 +19,8 @@
  */
 package ca.uhn.fhir.batch2.coordinator;
 
+import ca.uhn.fhir.batch2.api.BatchInstanceStatusDTO;
+import ca.uhn.fhir.batch2.api.BatchWorkChunkStatusDTO;
 import ca.uhn.fhir.batch2.api.IJobCoordinator;
 import ca.uhn.fhir.batch2.api.IJobMaintenanceService;
 import ca.uhn.fhir.batch2.api.IJobPersistence;
@@ -193,6 +195,16 @@ public class JobCoordinatorImpl implements IJobCoordinator {
 	public List<JobInstance> getJobInstancesByJobDefinitionId(String theJobDefinitionId, int theCount, int theStart) {
 		return getJobInstancesByJobDefinitionIdAndStatuses(
 				theJobDefinitionId, new HashSet<>(Arrays.asList(StatusEnum.values())), theCount, theStart);
+	}
+
+	@Override
+	public List<BatchWorkChunkStatusDTO> getWorkChunkStatus(String theInstanceId) {
+		return myJobPersistence.fetchWorkChunkStatusForInstance(theInstanceId);
+	}
+
+	@Override
+	public BatchInstanceStatusDTO getBatchInstanceStatus(String theInstanceId) {
+		return myJobPersistence.fetchBatchInstanceStatus(theInstanceId);
 	}
 
 	@Override
